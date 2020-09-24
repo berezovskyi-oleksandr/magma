@@ -56,21 +56,22 @@ def gps_tr181(value: str) -> str:
         return str(float(value) / 1e6)
     except ValueError:
         return value
+    except TypeError:
+        return '0'
 
 
 def bandwidth(bandwidth_rbs: Union[str, int, float]) -> float:
     """
     Map bandwidth in number of RBs to MHz
-    TODO: TR-196 spec says this should be '6' rather than 'n6', but
-    BaiCells eNodeB uses 'n6'. Need to resolve this.
 
     Args:
         bandwidth_rbs (str): Bandwidth in number of RBs
     Returns:
         str: Bandwidth in MHz
     """
-    if bandwidth_rbs in BANDWIDTH_RBS_TO_MHZ_MAP:
-        return BANDWIDTH_RBS_TO_MHZ_MAP[bandwidth_rbs]
+    for rbs, mhz in BANDWIDTH_RBS_TO_MHZ_MAP.items():
+        if rbs.endswith(bandwidth_rbs):
+            return mhz
 
     logger.warning('Unknown bandwidth_rbs (%s)', str(bandwidth_rbs))
     if bandwidth_rbs in BANDWIDTH_MHZ_LIST:

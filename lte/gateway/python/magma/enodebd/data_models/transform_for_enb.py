@@ -40,6 +40,13 @@ def invert_cell_reserved(value):
     return INVERT_CELL_RESERVED_MAP.get(value)
 
 
+def invert_cell_reserved_boolean(value):
+    """
+    We need to handle Baicells bug which inverts the meaning of 'cell reserved'
+    """
+    return not value
+
+
 def invert_cell_barred(value: bool):
     """
     We need to handle Baicells bug which inverts the meaning of 'cell barred'
