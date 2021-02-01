@@ -85,9 +85,9 @@ def compare_package_versions(current_version, target_version):
     return 0
 
 
-def _get_apt_update_complete_callback(target_version, loop):
+def _get_apt_update_complete_callback(target_version, loop, repo_changed=False):
     def callback(returncode):
-        if returncode != 0:
+        if returncode != 0 and repo_changed:
             logging.error(
                 "Apt-get update failed with code: %d", returncode
             )
@@ -95,13 +95,24 @@ def _get_apt_update_complete_callback(target_version, loop):
         logging.info("apt-get update completed")
         call_process(
             get_autoupgrade_command(target_version, dry_run=True),
-            _get_upgrade_dry_run_complete_callback(target_version, loop),
+            _get_upgrade_dry_run_complete_callback(target_version, loop,
+                                                   repo_changed),
             loop
         )
     return callback
 
-def _get_upgrade_dry_run_complete_callback(target_version, loop):
+def _get_upgrade_dry_run_complete_callback(target_version, loop, repo_changed=False):
     def callback(returncode):
+        if returncode != 0 and not repo_changed:
+            logging.info(
+                "Magma upgrade dry-run gailed. Changing repo")
+            call_process(
+                get_repo_update_commad(target_version),
+                _get_repo_update_complete_callback(target_version, loop),
+                loop
+            )
+            return
+
         if returncode != 0:
             logging.error(
                 "Magma Upgrade dry-run failed with code: %d", returncode
@@ -114,6 +125,22 @@ def _get_upgrade_dry_run_complete_callback(target_version, loop):
             _upgrade_completed,
             loop
         )
+    return callback
+
+
+def _get_repo_update_complete_callback(target_version, loop):
+    def callback(returncode):
+        if returncode != 0:
+            logging.error(
+                "Magma Upgrade dry-run failed with code: %d", returncode
+            )
+            return
+
+        call_process('apt-get update',
+                     _get_apt_update_complete_callback(target_version,
+                                                       loop,
+                                                       repo_changed=True),
+                     loop)
     return callback
 
 
@@ -137,3 +164,10 @@ def get_autoupgrade_command(version, *, dry_run=False):
     )
 
 
+def get_repo_update_commad(version):
+    version = version.split('-')[0]
+    command= 'sed -i "/magma/s/stretch[- ]\?[0-9\.]*/stretch-{version}/" ' \
+             '/etc/apt/sources.list.d/*.list'.format(
+        version=version,
+    )
+    return command
